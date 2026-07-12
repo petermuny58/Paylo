@@ -1,0 +1,124 @@
+// ============================================================================
+// Scan-to-Pay — Prisma Schema (Part 1)
+//
+// PostgreSQL is required, not just "nice to have": the double-spend guard in
+// transfer.controller.ts depends on Postgres's per-row atomicity for
+// UPDATE ... WHERE statements. SQLite/Mongo don't give you the same guarantee
+// under concurrent writes.
+//
+// Hosted on Supabase Postgres. Two URLs, not one — DATABASE_URL is the
+// pooled connection (Supavisor, port 6543) the running app uses at request
+// time; DIRECT_URL is the unpooled connection (port 5432) the Prisma CLI
+// uses for `migrate`/`db push`. Using the pooled URL for migrations is the
+// most common Prisma+Supabase failure — the pooler's transaction mode
+// doesn't support the prepared statements Prisma Migrate needs.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  BOTH
+}
+
+enum TransactionType {
+  TOP_UP // telecom (MTN/Airtel) -> wallet
+  PURCHASE // buyer wallet -> seller wallet (the QR flow)
+  WITHDRAWAL // wallet -> telecom
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  phoneNumber  String   @unique
+  passwordHash String
+  pinHash      String // bcrypt hash of the 4-digit PIN. Never store or log the raw PIN anywhere.
+  role         UserRole @default(BOTH)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  wallet               Wallet?
+  sentTransactions     Transaction[] @relation("SentTransactions")
+  receivedTransactions Transaction[] @relation("ReceivedTransactions")
+
+  @@map("users")
+}
+
+model Wallet {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Stored as an integer count of ngwee (1 ZMW = 100 ngwee), NEVER as a float.
+  // Floats can't represent money exactly and the rounding error compounds
+  // over enough transactions. Swap to BigInt only if a single wallet needs
+  // to hold more than ~21,000,000 ZMW (Int's ~2.1B ngwee ceiling).
+  balance  Int    @default(0)
+  currency String @default("ZMW")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Application-level negative-balance prevention lives in the transfer
+  // controller (an atomic conditional UPDATE — see transfer.controller.ts).
+  // As a second, database-level line of defense, hand-add this constraint
+  // to your first migration's generated SQL — Prisma's schema language has
+  // no native CHECK syntax, so this can't be expressed here directly:
+  //
+  //   ALTER TABLE wallets ADD CONSTRAINT balance_non_negative CHECK (balance >= 0);
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id String @id @default(cuid())
+
+  senderId String? // null for TOP_UP — money is entering from the telecom, not from a user
+  sender   User?   @relation("SentTransactions", fields: [senderId], references: [id])
+
+  receiverId String? // null for WITHDRAWAL — money is leaving to the telecom, not to a user
+  receiver   User?   @relation("ReceivedTransactions", fields: [receiverId], references: [id])
+
+  amount          Int // ngwee. Always the authoritative amount — set server-side, never trusted from a client.
+  transactionType TransactionType
+  status          TransactionStatus @default(PENDING)
+
+  // Doubles as the "intentId" embedded in the Dynamic QR code (see
+  // qr.controller.ts, coming in Part 2). Because this is a unique,
+  // unguessable, server-generated token, a buyer's device can decode the QR,
+  // edit the `amount` field, and re-encode it all it wants — POST
+  // /wallet/transfer looks up the REAL amount from this row by
+  // referenceCode and never reads amount off the request body. That
+  // referenceCode -> server-side-amount lookup is what makes the payload
+  // tamper-proof, not anything in the QR encoding itself.
+  referenceCode String @unique @default(cuid())
+
+  // External provider's transaction ID for TOP_UP / WITHDRAWAL, so a
+  // disputed transfer can always be traced back to the MTN/Airtel side.
+  telecomReference String?
+
+  // PENDING purchase intents (generated QR codes) expire so a screenshot or
+  // photo of an old QR can't be replayed weeks later.
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([referenceCode])
+  @@index([status])
+  @@map("transactions")
+}
