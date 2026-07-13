@@ -1,14 +1,14 @@
-import { initialPots } from '../data';
+import type { DashboardPot } from '../../../lib/types';
 import { body, display, type Colors } from '../tokens';
 import { AddRow, Card, Eyebrow, PotRow, ScreenHeader } from '../ui';
 
-export function PotsScreen({ c }: { c: Colors }) {
+export function PotsScreen({ c, pots }: { c: Colors; pots: DashboardPot[] }) {
   return (
     <div>
       <ScreenHeader c={c} title="Pots" />
       <div style={{ padding: '8px 20px 20px' }}>
         <Card c={c} style={{ marginBottom: 20 }}>
-          {initialPots.map((p) => (
+          {pots.map((p) => (
             <PotRow key={p.id} c={c} pot={p} />
           ))}
           <AddRow c={c} label="Add a pot" />
@@ -16,7 +16,7 @@ export function PotsScreen({ c }: { c: Colors }) {
 
         <Eyebrow c={c}>Auto-split on every sale</Eyebrow>
         <Card c={c} style={{ marginTop: 10, marginBottom: 20 }}>
-          {initialPots.filter((p) => p.pct > 0).map((p) => (
+          {pots.filter((p) => p.pct > 0).map((p) => (
             <div key={p.id} style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', ...body, fontSize: 13, color: c.text, marginBottom: 6 }}>
                 <span>{p.name}</span>

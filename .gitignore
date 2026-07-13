@@ -82,6 +82,9 @@ web_modules/
 .env.production.local
 .env.local
 
+# Prisma generated client
+generated/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

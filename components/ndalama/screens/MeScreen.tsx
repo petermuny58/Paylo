@@ -3,7 +3,15 @@ import { Check, ChevronRight, Moon, Sun } from 'lucide-react';
 import { body, display, type Colors, type ThemeMode } from '../tokens';
 import { Card, Eyebrow, ScreenHeader, SettingsRow } from '../ui';
 
-function AccountSettingsScreen({ c, onBack }: { c: Colors; onBack: () => void }) {
+function AccountSettingsScreen({
+  c,
+  onBack,
+  phoneNumber,
+}: {
+  c: Colors;
+  onBack: () => void;
+  phoneNumber?: string;
+}) {
   return (
     <div>
       <ScreenHeader c={c} title="Account Settings" onBack={onBack} />
@@ -11,7 +19,7 @@ function AccountSettingsScreen({ c, onBack }: { c: Colors; onBack: () => void })
         <Eyebrow c={c}>Profile</Eyebrow>
         <Card c={c} style={{ marginTop: 10, marginBottom: 20 }}>
           <SettingsRow c={c} label="Name" value="Mrs. Banda" />
-          <SettingsRow c={c} label="Phone number" value="+260 97 000 0001" />
+          <SettingsRow c={c} label="Phone number" value={phoneNumber ?? '—'} />
           <SettingsRow c={c} label="Email" value="Not set" last />
         </Card>
 
@@ -166,11 +174,21 @@ function RestockAdvanceScreen({ c, onBack }: { c: Colors; onBack: () => void }) 
   );
 }
 
-export function MeScreen({ c, mode, setMode }: { c: Colors; mode: ThemeMode; setMode: (mode: ThemeMode) => void }) {
+export function MeScreen({
+  c,
+  mode,
+  setMode,
+  phoneNumber,
+}: {
+  c: Colors;
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
+  phoneNumber?: string;
+}) {
   const [view, setView] = useState('list');
 
   if (view === 'account-settings') {
-    return <AccountSettingsScreen c={c} onBack={() => setView('list')} />;
+    return <AccountSettingsScreen c={c} onBack={() => setView('list')} phoneNumber={phoneNumber} />;
   }
   if (view === 'health-score') {
     return <HealthScoreScreen c={c} onBack={() => setView('list')} />;

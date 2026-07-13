@@ -4,4 +4,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [vike(), react()],
+  ssr: {
+    noExternal: ["@prisma/client", "@prisma/adapter-pg"],
+  },
 });

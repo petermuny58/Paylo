@@ -1,5 +1,5 @@
 import { ArrowDownLeft, Camera, ChevronRight } from 'lucide-react';
-import { initialPots, recentActivity } from '../data';
+import type { DashboardPot, DashboardTransaction } from '../../../lib/types';
 import { body, display, formatK, type Colors } from '../tokens';
 import { Card, Eyebrow } from '../ui';
 
@@ -7,19 +7,24 @@ export function HomeScreen({
   c,
   goPay,
   setTab,
+  walletBalance,
+  pots,
+  recentActivity,
 }: {
   c: Colors;
   goPay: (view: string) => void;
   setTab: (tab: string) => void;
+  walletBalance: number;
+  pots: DashboardPot[];
+  recentActivity: DashboardTransaction[];
 }) {
-  const total = initialPots.reduce((s, p) => s + p.balance, 0);
   return (
     <div style={{ padding: '24px 20px 20px' }}>
       <Card c={c} hero style={{ marginBottom: 20 }}>
         <div style={{ ...body, fontSize: 12, fontWeight: 700, letterSpacing: 1.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)' }}>
           Wallet Balance
         </div>
-        <div style={{ ...display, fontSize: 42, fontWeight: 700, color: '#fff', marginTop: 6 }}>K {formatK(total)}</div>
+        <div style={{ ...display, fontSize: 42, fontWeight: 700, color: '#fff', marginTop: 6 }}>K {formatK(walletBalance)}</div>
         <div style={{ ...body, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>3 weeks of salary banked</div>
       </Card>
 
@@ -42,7 +47,7 @@ export function HomeScreen({
 
       <Eyebrow c={c}>Pots</Eyebrow>
       <div style={{ display: 'flex', gap: 10, overflowX: 'auto', marginTop: 10, marginBottom: 22, paddingBottom: 2 }}>
-        {initialPots.map((p) => (
+        {pots.map((p) => (
           <div key={p.id} style={{ flexShrink: 0, background: c.surface, border: `1px solid ${c.border}`, borderRadius: 14, padding: '10px 14px', minWidth: 108 }}>
             <div style={{ ...body, fontSize: 11, color: c.muted, fontWeight: 600 }}>{p.name}</div>
             <div style={{ ...display, fontSize: 15, fontWeight: 700, color: c.text, marginTop: 2 }}>K {formatK(p.balance)}</div>
@@ -55,14 +60,18 @@ export function HomeScreen({
 
       <Eyebrow c={c}>Recent</Eyebrow>
       <div style={{ marginTop: 10 }}>
-        {recentActivity.map((tx) => (
-          <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${c.border}` }}>
-            <div style={{ ...body, fontSize: 14, color: c.text }}>{tx.label}</div>
-            <div style={{ ...display, fontSize: 14, fontWeight: 600, color: tx.dir === 'in' ? c.success : c.text }}>
-              {tx.dir === 'in' ? '+' : ''}K {formatK(Math.abs(tx.amount))}
+        {recentActivity.length === 0 ? (
+          <div style={{ ...body, fontSize: 13, color: c.muted, padding: '10px 0' }}>No transactions yet</div>
+        ) : (
+          recentActivity.map((tx) => (
+            <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px solid ${c.border}` }}>
+              <div style={{ ...body, fontSize: 14, color: c.text }}>{tx.label}</div>
+              <div style={{ ...display, fontSize: 14, fontWeight: 600, color: tx.dir === 'in' ? c.success : c.text }}>
+                {tx.dir === 'in' ? '+' : ''}K {formatK(Math.abs(tx.amount))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
