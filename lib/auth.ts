@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const SALT_ROUNDS = 12;
-const SESSION_COOKIE = "ndalama_session";
+const SESSION_COOKIE = "paylo_session";
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7 days
 
 export type SessionUser = {
@@ -88,7 +88,8 @@ export function clearSessionCookie(): {
 }
 
 export async function verifyUserPin(userId: string, pin: string): Promise<boolean> {
-  const { prisma } = await import("./prisma.js");
+  const { getPrisma } = await import("./prisma.js");
+  const prisma = await getPrisma();
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { pinHash: true },

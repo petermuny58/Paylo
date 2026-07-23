@@ -6,7 +6,7 @@ import vikeReact from "vike-react/config";
 
 const config: Config = {
   // https://vike.dev/head-tags
-  title: "Ndalama",
+  title: "Paylo",
   description: "Fintech for Zambian entrepreneurs",
 
   extends: [vikeReact],

@@ -1,8 +1,8 @@
-import { useData } from "vike-react/useData";
-import NdalamaPrototype from "../../components/ndalama";
 import type { Data } from "./+data";
+import PayloPrototype from "../../components/paylo";
+import { useData } from "vike-react/useData";
 
 export default function Page() {
   const data = useData<Data>();
-  return <NdalamaPrototype {...data} />;
+  return <PayloPrototype {...data} />;
 }

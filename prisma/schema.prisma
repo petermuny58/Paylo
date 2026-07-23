@@ -1,4 +1,4 @@
-// Ndalama — Prisma schema
+// Paylo — Prisma schema
 // Money is stored as INTEGER ngwee everywhere (1 ZMW = 100 ngwee).
 
 generator client {

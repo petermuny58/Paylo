@@ -26,16 +26,30 @@ import {
 
 const app = new Hono();
 
-function jsonError(error: unknown, status = 400): Response {
+function jsonError(c: Context, error: unknown, status = 400) {
   if (error instanceof AppError) {
-    return Response.json({ error: error.message }, { status: error.status });
+    return c.json({ error: error.message }, error.status as 400);
+  }
+  if (error instanceof z.ZodError) {
+    const message = error.issues[0]?.message ?? "Invalid request";
+    return c.json({ error: message }, 400);
   }
   console.error(error);
-  return Response.json({ error: "Internal server error" }, { status });
+  return c.json({ error: "Internal server error" }, status as 500);
+}
+
+function setSessionCookie(c: Context, token: string) {
+  const opts = sessionCookieOptions(token);
+  setCookie(c, opts.name, opts.value, {
+    maxAge: opts.maxAge,
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+  });
 }
 
 function requireUser(c: Context): string | Response {
-  const token = getCookie(c, "ndalama_session");
+  const token = getCookie(c, "paylo_session");
   const user = token ? verifySession(token) : parseSessionCookie(c.req.header("cookie"));
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -78,16 +92,11 @@ app.post("/api/auth/register", async (c) => {
   try {
     const body = registerSchema.parse(await c.req.json());
     const user = await registerUser(body);
-    const token = signSession(user);
-    setCookie(c, sessionCookieOptions(token).name, sessionCookieOptions(token).value, {
-      maxAge: sessionCookieOptions(token).maxAge,
-      httpOnly: true,
-      sameSite: "Lax",
-      path: "/",
-    });
-    return Response.json({ user });
+    setSessionCookie(c, signSession(user));
+    // Must use c.json() so Hono includes the Set-Cookie header from setCookie().
+    return c.json({ user });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 
@@ -95,16 +104,10 @@ app.post("/api/auth/login", async (c) => {
   try {
     const body = loginSchema.parse(await c.req.json());
     const user = await loginUser(body.phoneNumber, body.password);
-    const token = signSession(user);
-    setCookie(c, sessionCookieOptions(token).name, sessionCookieOptions(token).value, {
-      maxAge: sessionCookieOptions(token).maxAge,
-      httpOnly: true,
-      sameSite: "Lax",
-      path: "/",
-    });
-    return Response.json({ user });
+    setSessionCookie(c, signSession(user));
+    return c.json({ user });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 
@@ -116,7 +119,7 @@ app.post("/api/auth/logout", (c) => {
     sameSite: "Lax",
     path: "/",
   });
-  return Response.json({ ok: true });
+  return c.json({ ok: true });
 });
 
 app.post("/api/auth/verify-pin", async (c) => {
@@ -126,11 +129,11 @@ app.post("/api/auth/verify-pin", async (c) => {
     const body = pinSchema.parse(await c.req.json());
     const ok = await verifyUserPin(userId, body.pin);
     if (!ok) {
-      return Response.json({ error: "Invalid transaction PIN" }, { status: 401 });
+      return c.json({ error: "Invalid transaction PIN" }, 401);
     }
-    return Response.json({ ok: true });
+    return c.json({ ok: true });
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 
@@ -139,9 +142,9 @@ app.get("/api/wallet/dashboard", async (c) => {
     const userId = requireUser(c);
     if (userId instanceof Response) return userId;
     const data = await getDashboardData(userId);
-    return Response.json(data);
+    return c.json(data);
   } catch (error) {
-    return jsonError(error, 500);
+    return jsonError(c, error, 500);
   }
 });
 
@@ -152,9 +155,9 @@ app.post("/api/wallet/mock-top-up", async (c) => {
     const body = amountSchema.parse(await c.req.json());
     const amountNgwee = zmwToNgwee(body.amountZmw);
     const data = await mockTopUp(userId, amountNgwee);
-    return Response.json(data);
+    return c.json(data);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 
@@ -165,9 +168,9 @@ app.post("/api/wallet/send-to-pot", async (c) => {
     const body = sendToPotSchema.parse(await c.req.json());
     const amountNgwee = zmwToNgwee(body.amountZmw);
     const data = await sendToPot(userId, body.potId, amountNgwee);
-    return Response.json(data);
+    return c.json(data);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 
@@ -178,9 +181,9 @@ app.post("/api/wallet/withdraw", async (c) => {
     const body = withdrawSchema.parse(await c.req.json());
     const amountNgwee = zmwToNgwee(body.amountZmw);
     const data = await withdrawFromWallet(userId, amountNgwee, body.pin);
-    return Response.json(data);
+    return c.json(data);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 
@@ -191,9 +194,9 @@ app.post("/api/wallet/spend-from-pot", async (c) => {
     const body = spendSchema.parse(await c.req.json());
     const amountNgwee = zmwToNgwee(body.amountZmw);
     const data = await spendFromPot(userId, body.potId, amountNgwee, body.label);
-    return Response.json(data);
+    return c.json(data);
   } catch (error) {
-    return jsonError(error);
+    return jsonError(c, error);
   }
 });
 

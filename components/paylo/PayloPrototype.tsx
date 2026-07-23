@@ -9,19 +9,19 @@ import { MeScreen } from './screens/MeScreen';
 import { PayScreen } from './screens/PayScreen';
 import { PotsScreen } from './screens/PotsScreen';
 
-export type NdalamaAppProps = {
+export type PayloAppProps = {
   user: { id: string; phoneNumber: string } | null;
   walletBalance: number;
   pots: DashboardPot[];
   recentActivity: DashboardTransaction[];
 };
 
-export default function NdalamaPrototype({
+export default function PayloPrototype({
   user,
   walletBalance,
   pots,
   recentActivity,
-}: NdalamaAppProps) {
+}: PayloAppProps) {
   const [mode, setMode] = useState<ThemeMode>('dark');
   const [tab, setTab] = useState('home');
   const [payView, setPayView] = useState('choice');

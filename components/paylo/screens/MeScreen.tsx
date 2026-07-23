@@ -111,7 +111,7 @@ function HealthScoreScreen({ c, onBack }: { c: Colors; onBack: () => void }) {
         <Eyebrow c={c}>Unlocks</Eyebrow>
         <Card c={c} style={{ marginTop: 10, width: '100%', boxSizing: 'border-box' }}>
           <div style={{ ...body, fontSize: 14, color: c.text, lineHeight: 1.5 }}>
-            Restock Advance eligibility, priority Chilimba group invites, and lower Ndalama Till fees.
+            Restock Advance eligibility, priority Chilimba group invites, and lower Paylo Till fees.
           </div>
         </Card>
       </div>
@@ -204,7 +204,7 @@ export function MeScreen({
     'Linked mobile money',
     'Security & PIN',
     'Language',
-    'Ndalama Till mode',
+    'Paylo Till mode',
   ];
   return (
     <div>

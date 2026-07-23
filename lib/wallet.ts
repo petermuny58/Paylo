@@ -1,30 +1,32 @@
 import { Direction } from "../generated/prisma/client.js";
 import type { DashboardData } from "./types.js";
-import { prisma } from "./prisma.js";
+import { getPrisma } from "./prisma.js";
 import { AppError } from "./money.js";
 
 export type { DashboardData, DashboardPot, DashboardTransaction } from "./types.js";
 
 export async function getDashboardData(userId: string): Promise<DashboardData> {
-  const [wallet, pots, transactions] = await Promise.all([
-    prisma.wallet.findUnique({ where: { userId } }),
-    prisma.pot.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
-    prisma.transaction.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-  ]);
+  const prisma = await getPrisma();
+  // Single round-trip so we only need one pooled connection (session-mode
+  // Supabase poolers choke when Promise.all opens 3 clients at once).
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      wallet: true,
+      pots: { orderBy: { createdAt: "asc" } },
+      transactions: { orderBy: { createdAt: "desc" }, take: 20 },
+    },
+  });
 
   return {
-    walletBalance: wallet?.balance ?? 0,
-    pots: pots.map((p) => ({
+    walletBalance: user?.wallet?.balance ?? 0,
+    pots: (user?.pots ?? []).map((p) => ({
       id: p.id,
       name: p.name,
       balance: p.balance,
       pct: p.allocationPct,
     })),
-    recentActivity: transactions.map((tx) => ({
+    recentActivity: (user?.transactions ?? []).map((tx) => ({
       id: tx.id,
       label: tx.label,
       amount: tx.direction === Direction.IN ? tx.amount : -tx.amount,
@@ -39,6 +41,7 @@ export async function mockTopUp(userId: string, amountNgwee: number): Promise<Da
     throw new AppError("Amount must be greater than zero");
   }
 
+  const prisma = await getPrisma();
   await prisma.$transaction(async (tx) => {
     const wallet = await tx.wallet.findUnique({ where: { userId } });
     if (!wallet) {
@@ -69,6 +72,7 @@ export async function sendToPot(userId: string, potId: string, amountNgwee: numb
     throw new AppError("Amount must be greater than zero");
   }
 
+  const prisma = await getPrisma();
   await prisma.$transaction(async (tx) => {
     const walletUpdate = await tx.wallet.updateMany({
       where: { userId, balance: { gte: amountNgwee } },
@@ -117,6 +121,7 @@ export async function withdrawFromWallet(
     throw new AppError("Invalid transaction PIN", 401);
   }
 
+  const prisma = await getPrisma();
   await prisma.$transaction(async (tx) => {
     const walletUpdate = await tx.wallet.updateMany({
       where: { userId, balance: { gte: amountNgwee } },
@@ -145,6 +150,7 @@ export async function spendFromPot(userId: string, potId: string, amountNgwee: n
     throw new AppError("Amount must be greater than zero");
   }
 
+  const prisma = await getPrisma();
   await prisma.$transaction(async (tx) => {
     const potUpdate = await tx.pot.updateMany({
       where: { id: potId, userId, balance: { gte: amountNgwee } },
@@ -174,6 +180,7 @@ export async function registerUser(input: {
   pin: string;
 }): Promise<{ id: string; phoneNumber: string }> {
   const { hashSecret } = await import("./auth.js");
+  const prisma = await getPrisma();
 
   const existing = await prisma.user.findUnique({ where: { phoneNumber: input.phoneNumber } });
   if (existing) {
@@ -208,6 +215,7 @@ export async function registerUser(input: {
 
 export async function loginUser(phoneNumber: string, password: string): Promise<{ id: string; phoneNumber: string }> {
   const { verifySecret } = await import("./auth.js");
+  const prisma = await getPrisma();
 
   const user = await prisma.user.findUnique({ where: { phoneNumber } });
   if (!user) {

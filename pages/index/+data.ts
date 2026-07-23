@@ -1,5 +1,5 @@
 import type { PageContextServer } from "vike/types";
-import { getDashboardData } from "../lib/wallet.js";
+import { getDashboardData } from "../../lib/wallet.js";
 
 export type Data = Awaited<ReturnType<typeof data>>;
 

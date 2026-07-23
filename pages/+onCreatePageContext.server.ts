@@ -16,12 +16,14 @@ declare global {
 }
 
 export async function onCreatePageContext(pageContext: PageContextServer) {
-  const req = pageContext.req;
+  const headers = pageContext.headers;
   const cookieHeader =
-    req?.headers?.get?.("cookie") ??
-    (typeof pageContext.headers?.cookie === "string" ? pageContext.headers.cookie : undefined);
+    (typeof headers?.cookie === "string" && headers.cookie) ||
+    (typeof headers?.Cookie === "string" && headers.Cookie) ||
+    pageContext.req?.headers?.get?.("cookie") ||
+    undefined;
 
-  const user = parseSessionCookie(cookieHeader);
+  const user = parseSessionCookie(cookieHeader || undefined);
   if (user) {
     pageContext.user = user;
   }
