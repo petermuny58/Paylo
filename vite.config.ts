@@ -1,10 +1,10 @@
-Import vike from "vike/plugin";
-import vikeVercel from "vike-vercel/plugin";
+import vike from "vike/plugin";
+import { vercel } from "vite-plugin-vercel/vite";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [vike(), vikeVercel(), react()],
+  plugins: [vike(), vercel(), react()],
   ssr: {
     external: ["@prisma/client", "@prisma/adapter-pg", "pg"],
   },
