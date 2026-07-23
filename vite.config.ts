@@ -1,11 +1,10 @@
-import vike from "vike/plugin";
+Import vike from "vike/plugin";
+import vikeVercel from "vike-vercel/plugin";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [vike(), react()],
-  // Keep Prisma + pg out of Vite's SSR module runner. Their WASM/dynamic
-  // imports break after HMR restarts ("Vite module runner has been closed").
+  plugins: [vike(), vikeVercel(), react()],
   ssr: {
     external: ["@prisma/client", "@prisma/adapter-pg", "pg"],
   },

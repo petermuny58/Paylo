@@ -63,13 +63,14 @@ export function BottomNav({ c, tab, setTab }: { c: Colors; tab: string; setTab: 
         bottom: 0,
         left: 0,
         right: 0,
-        height: 84,
+        minHeight: 84,
         background: c.surface,
         borderTop: `1px solid ${c.border}`,
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-around',
         paddingTop: 10,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
       {items.map((item) => {

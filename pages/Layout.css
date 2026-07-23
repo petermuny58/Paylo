@@ -11,12 +11,22 @@ a {
 }
 
 /* Reset */
+html,
+body {
+  min-height: 100%;
+}
 body {
   margin: 0;
   font-family: sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 * {
   box-sizing: border-box;
+}
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Page Transition Animation */
