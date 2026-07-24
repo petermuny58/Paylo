@@ -5,7 +5,7 @@ import pg from "pg";
 import { PrismaClient } from "../generated/prisma/client.js";
 
 // Bump when pool construction changes so HMR can't reuse a broken singleton.
-const POOL_VERSION = 4;
+const POOL_VERSION = 5;
 
 declare global {
   // eslint-disable-next-line no-var
@@ -27,6 +27,10 @@ type DbTarget = {
   ssl: pg.ClientConfig["ssl"];
 };
 
+function isServerlessRuntime(): boolean {
+  return process.env.VERCEL === "1" || process.env.AWS_LAMBDA_FUNCTION_NAME != null;
+}
+
 function parseDatabaseUrl(connectionString: string): {
   hostname: string;
   target: Omit<DbTarget, "host">;
@@ -47,12 +51,27 @@ function parseDatabaseUrl(connectionString: string): {
   };
 }
 
+async function createPoolViaHostname(connectionString: string): Promise<pg.Pool> {
+  const isSupabase = /supabase/i.test(connectionString);
+  const pool = new pg.Pool({
+    connectionString,
+    ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+    // Serverless: one connection per isolate; avoid exhausting Supabase pooler.
+    max: 1,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
+    allowExitOnIdle: true,
+  });
+  await pool.query("select 1");
+  return pool;
+}
+
 /**
- * Supabase pooler DNS returns multiple A records; some are unreachable from
- * this network. Build a pool against each IP and keep the first that can
- * actually run `select 1` (avoids a probe-then-reconnect gap that times out).
+ * Supabase pooler DNS can return multiple A records; some are unreachable from
+ * certain local networks. Probe each IP and keep the first that can run `select 1`.
+ * Skipped on Vercel — sequential 10s probes burn the whole function budget.
  */
-async function createPool(connectionString: string): Promise<pg.Pool> {
+async function createPoolViaIpProbe(connectionString: string): Promise<pg.Pool> {
   const { hostname, target } = parseDatabaseUrl(connectionString);
   let addresses: string[];
   try {
@@ -71,10 +90,9 @@ async function createPool(connectionString: string): Promise<pg.Pool> {
       password: target.password,
       database: target.database,
       ssl: target.ssl,
-      // Session-mode pooler (5432) is 1:1 with backends — keep this tiny.
       max: 1,
       idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 8_000,
       allowExitOnIdle: true,
     });
     try {
@@ -94,6 +112,13 @@ async function createPool(connectionString: string): Promise<pg.Pool> {
   );
 }
 
+async function createPool(connectionString: string): Promise<pg.Pool> {
+  if (isServerlessRuntime()) {
+    return createPoolViaHostname(connectionString);
+  }
+  return createPoolViaIpProbe(connectionString);
+}
+
 async function createPrismaClient(): Promise<PrismaClient> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
@@ -107,10 +132,9 @@ async function createPrismaClient(): Promise<PrismaClient> {
   }
 
   const pool = global.__pgPool ?? (await createPool(connectionString));
-  if (process.env.NODE_ENV !== "production") {
-    global.__pgPool = pool;
-    global.__pgPoolVersion = POOL_VERSION;
-  }
+  // Cache on globalThis in all environments (needed for Vercel warm isolates).
+  global.__pgPool = pool;
+  global.__pgPoolVersion = POOL_VERSION;
 
   return new PrismaClient({
     adapter: new PrismaPg(pool),
@@ -118,7 +142,7 @@ async function createPrismaClient(): Promise<PrismaClient> {
   });
 }
 
-/** Lazily init Prisma (probes pooler IPs on first use). */
+/** Lazily init Prisma (probes pooler IPs on first use locally). */
 export async function getPrisma(): Promise<PrismaClient> {
   if (global.__prisma && global.__pgPoolVersion === POOL_VERSION) {
     return global.__prisma;
@@ -126,9 +150,7 @@ export async function getPrisma(): Promise<PrismaClient> {
   if (!global.__prismaInit) {
     global.__prismaInit = createPrismaClient()
       .then((client) => {
-        if (process.env.NODE_ENV !== "production") {
-          global.__prisma = client;
-        }
+        global.__prisma = client;
         return client;
       })
       .catch((err) => {

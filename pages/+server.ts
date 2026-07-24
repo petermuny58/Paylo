@@ -26,7 +26,14 @@ import {
 
 const app = new Hono();
 
-function jsonError(c: Context, error: unknown, status = 400) {
+function isConfigError(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    /^(DATABASE_URL|JWT_SECRET|DIRECT_URL) is not set|Could not reach Supabase/i.test(error.message)
+  );
+}
+
+function jsonError(c: Context, error: unknown, status = 500) {
   if (error instanceof AppError) {
     return c.json({ error: error.message }, error.status as 400);
   }
@@ -35,6 +42,9 @@ function jsonError(c: Context, error: unknown, status = 400) {
     return c.json({ error: message }, 400);
   }
   console.error(error);
+  if (isConfigError(error)) {
+    return c.json({ error: error.message }, 503);
+  }
   return c.json({ error: "Internal server error" }, status as 500);
 }
 
@@ -45,6 +55,7 @@ function setSessionCookie(c: Context, token: string) {
     httpOnly: true,
     sameSite: "Lax",
     path: "/",
+    secure: opts.secure,
   });
 }
 
@@ -118,6 +129,7 @@ app.post("/api/auth/logout", (c) => {
     httpOnly: true,
     sameSite: "Lax",
     path: "/",
+    secure: cleared.secure,
   });
   return c.json({ ok: true });
 });

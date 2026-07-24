@@ -3,16 +3,39 @@ import { reload } from "vike/client/router";
 import type { DashboardPot } from "../../lib/types";
 import { body, type Colors } from "./tokens";
 
+function errorMessageFromBody(data: unknown): string {
+  if (!data || typeof data !== "object") return "Request failed";
+  const err = (data as { error?: unknown }).error;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    const msg = (err as { message?: unknown }).message;
+    if (typeof msg === "string") {
+      if (/Protected deployment/i.test(msg)) {
+        return "This Vercel preview is Deployment-Protected. Disable protection for the preview, or test on the production domain / locally with `npm run dev`.";
+      }
+      return msg;
+    }
+  }
+  return "Request failed";
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the auth API (network timeout). On Vercel previews, turn off Deployment Protection or use `npm run dev` locally.",
+    );
+  }
+  const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new Error(data.error ?? "Request failed");
+    throw new Error(errorMessageFromBody(data));
   }
   return data as T;
 }

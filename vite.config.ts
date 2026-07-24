@@ -4,7 +4,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [vike(), vercel(), react()],
+  plugins: [
+    vike(),
+    vercel({
+      // Give cold-start + first DB connect enough headroom on Hobby/Pro.
+      defaultMaxDuration: 30,
+    }),
+    react(),
+  ],
   ssr: {
     external: ["@prisma/client", "@prisma/adapter-pg", "pg"],
   },

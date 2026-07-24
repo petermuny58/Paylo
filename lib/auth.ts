@@ -51,6 +51,10 @@ export function parseSessionCookie(cookieHeader: string | null | undefined): Ses
   return verifySession(decodeURIComponent(match[1]));
 }
 
+function cookieSecure(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
+}
+
 export function sessionCookieOptions(token: string): {
   name: string;
   value: string;
@@ -58,6 +62,7 @@ export function sessionCookieOptions(token: string): {
   httpOnly: boolean;
   sameSite: "lax";
   path: string;
+  secure: boolean;
 } {
   return {
     name: SESSION_COOKIE,
@@ -66,6 +71,7 @@ export function sessionCookieOptions(token: string): {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
+    secure: cookieSecure(),
   };
 }
 
@@ -76,6 +82,7 @@ export function clearSessionCookie(): {
   httpOnly: boolean;
   sameSite: "lax";
   path: string;
+  secure: boolean;
 } {
   return {
     name: SESSION_COOKIE,
@@ -84,6 +91,7 @@ export function clearSessionCookie(): {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
+    secure: cookieSecure(),
   };
 }
 
