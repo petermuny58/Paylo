@@ -1,3 +1,4 @@
+import "dotenv/config";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -16,7 +17,8 @@ export type SessionPayload = SessionUser & {
 };
 
 function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
+  // Bracket access avoids Vite statically replacing process.env.JWT_SECRET at transform time.
+  const secret = process.env["JWT_SECRET"];
   if (!secret) {
     throw new Error("JWT_SECRET is not set");
   }
